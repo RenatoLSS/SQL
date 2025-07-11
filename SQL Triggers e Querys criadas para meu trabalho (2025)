@@ -1,0 +1,118 @@
+-- Trigger criada para bloquar o cadastro do componente sem o exame principal.
+-- =============================================
+-- Author:		RENATO
+-- Create date: 21/06/2025
+-- Description:	Bloquear cadastro de componentes.
+-- =============================================
+
+ALTER TRIGGER [dbo].[tg_smm_bloqueia_componente]
+
+   ON [dbo].[smm]
+   AFTER INSERT
+AS
+BEGIN
+    IF EXISTS (
+        SELECT 1
+        FROM inserted i
+        INNER JOIN smk k 
+            ON k.smk_cod = i.smm_cod AND k.smk_tipo = i.smm_tpcod
+        WHERE 
+            i.smm_exec IN ('A', 'P')
+            AND k.SMK_COD_EXTERNO = 'C' -- é um componente
+            AND i.smm_pai_smk_cod IS NULL -- foi lançado isoladamente
+    )
+    BEGIN
+        RAISERROR (
+            N'ATENÇÃO: Este exame é um componente e não pode ser lançado isoladamente. Verifique o exame principal correspondente.',
+            16, 1
+        );
+        ROLLBACK TRANSACTION;
+    END
+END
+
+--**********************************QYUERY PARA VERIFICAR EXAMES DUPLICADOS**********************************
+--VERIFICA TODAS AS OS'S COM EXAMES DUPLICADOS EM UM CERTO PERIODO DE TEMPO
+
+SELECT
+    smm_cod_amostra,
+    *
+FROM
+    smm
+WHERE
+    smm_osm_serie = '400'
+    AND smm_dthr_lanc >= '2025-01-17 09:20:00:00'
+    AND EXISTS (
+        SELECT
+            1
+        FROM
+            smm b
+        WHERE
+            b.smm_osm_serie = smm_osm_serie
+            AND b.smm_osm = smm_osm
+            AND b.smm_cod = smm_cod
+            AND b.smm_osm_serie = '400'
+            AND b.smm_dthr_lanc >= '2025-01-17 09:20:00:00'
+    )
+
+--FILTRA PARA TRAZER APENAS UM DOS DUPLICADOS
+SELECT
+    smm.*
+FROM
+    smm
+    JOIN (
+        SELECT
+            smm_osm,
+            smm_osm_serie,
+            smm_cod,
+            MAX(smm_num) AS max_smm_num
+        FROM
+            smm
+        WHERE
+            smm.smm_dthr_lanc >= '2025-01-17 09:00:00'
+            AND smm.smm_osm_serie = '400'
+        GROUP BY
+            smm_osm,
+            smm_osm_serie,
+            smm_cod
+        HAVING
+            COUNT(*) > 1
+    ) AS max_exames ON smm.smm_osm = max_exames.smm_osm
+    AND smm.smm_osm_serie = max_exames.smm_osm_serie
+    AND smm.smm_cod = max_exames.smm_cod
+    AND smm.smm_num = max_exames.max_smm_num
+WHERE
+    smm.smm_dthr_lanc >= '2025-01-17 09:00:00'
+    AND smm.smm_osm_serie = '400'
+ORDER BY
+    smm.smm_osm DESC,
+    smm.smm_cod DESC;
+
+--FILTRA A RCL COM BASE NO CAMPO ALTERADO ANTERIORMENTE
+SELECT
+    RCL.*
+FROM
+    smm
+    INNER JOIN rcl ON rcl_osm_serie = smm_osm_serie
+    AND rcl_osm = smm_osm
+    AND smm_num = rcl_smm
+WHERE
+    smm_osm_serie = '400'
+    AND smm_dthr_lanc >= '2025-01-17 09:20:00:00'
+    AND smm_SENHA = 'MDVD'
+
+--ALTERA TODOS OS DUPLICADOS PARA STATUS CANCELADO VIA BD
+UPDATE
+    RCL
+SET
+    RCL_STAT = 'C'
+FROM
+    smm
+    INNER JOIN rcl ON rcl_osm_serie = smm_osm_serie
+    AND rcl_osm = smm_osm
+    AND smm_num = rcl_smm
+WHERE
+    smm_osm_serie = '400'
+    AND smm_dthr_lanc >= '2025-01-17 09:20:00:00'
+    AND smm_SENHA = 'MDVD'
+
+-- ***********************************FIM**********************************************
