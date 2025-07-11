@@ -1,0 +1,130 @@
+SELECT DISTINCT city, state
+from sales.customers
+where state ='MG'
+order by city
+
+SELECT * 
+FROM sales.funnel
+LIMIT 10
+
+SELECT visit_id, finish_checkout_date
+FROM sales.funnel
+WHERE finish_checkout_date is not null
+ORDER BY  finish_checkout_date DESC 
+LIMIT 10 
+
+SELECT * 
+FROM sales.customers
+WHERE birth_date > '20000101'
+ORDER BY score DESC
+LIMIT 10
+
+SELECT 
+email,
+income,
+(income/1200) as "Salário Mínimo",
+(income > (1200 * 4)) as "Acima de 4 sálarios"
+FROM sales.customers
+ORDER BY "Salário Mínimo"
+
+SELECT 
+email,
+income,
+(income/1200) as "Salário Mínimo",
+(income > (1200 * 4)) as "Acima de 4 sálarios"
+FROM sales.customers
+WHERE income BETWEEN (1200 * 4) and (1200 * 5)
+ORDER BY "Salário Mínimo"
+
+SELECT 
+email,
+city,
+state
+from sales.customers
+WHERE state in ('MG','MT')
+
+
+SELECT 
+email,
+city,
+state
+from sales.customers
+WHERE state not in ('SP')
+
+SELECT 
+city
+FROM  temp_tables.regions
+WHERE city ILIKE 'Z%'
+
+SELECT count(customer_id),
+(current_date - birth_date)/365 as compare
+from sales.customers
+WHERE ((current_date - birth_date)/365) < 30
+group by birth_date
+order by compare
+
+SELECT 
+MAX((current_date - birth_date)/365) AS OLDEST,
+MIN((current_date - birth_date)/365) AS NEWEST
+from sales.customers
+
+SELECT *
+FROM sales.customers
+WHERE income = (select MAX(income) from sales.customers)
+
+SELECT brand,
+COUNT (product_id) as Quantidade
+from sales.products 
+group by brand
+order by Quantidade desc
+
+SELECT brand, model_year,
+COUNT(product_id) as Quantidade
+from sales.products
+group by brand, model_year
+order by brand, model_year
+
+SELECT brand,
+COUNT (product_id)
+from sales.products
+GROUP BY brand
+HAVING COUNT (product_id) > 10
+
+
+select prod.brand as marca,
+count(fun.visit_page_date) as visitas
+from sales.funnel as fun
+left join sales.products as prod
+on fun.product_id = prod.product_id
+group by marca
+order by visitas desc
+
+
+select prod.brand as marca,
+count(fun.visit_page_date) as visitas
+from sales.funnel as fun
+left join sales.products as prod
+on fun.product_id = prod.product_id
+group by marca
+order by visitas desc
+
+select lojas.store_name as nome,
+count (fun.visit_page_date) as visitas
+from sales.funnel as fun
+left join sales.stores as lojas
+on fun.store_id = lojas.store_id
+group by nome
+order by visitas desc
+
+select reg.size as tamanho,
+count (customer_id) as quantidade
+from sales.customers as clientes
+left join temp_tables.regions as reg
+on lower (clientes.city) = lower (reg.city)
+and lower (clientes.state) = lower (reg.state)
+group by tamanho
+order by quantidade desc
+
+with qtd_visitas as (
+select count (visit_id)
+)
