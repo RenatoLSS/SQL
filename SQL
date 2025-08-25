@@ -128,3 +128,63 @@ order by quantidade desc
 with qtd_visitas as (
 select count (visit_id)
 )
+----- GOOGLE DATA ANALYTICS ---- SUBQUERYS ----
+
+SELECT 
+products_industry_name, 
+COUNT(report_number) AS count_hospitalizations
+FROM
+bigquery-public-data.fda_food.food_events
+WHERE products_industry_name IN
+(SELECT 
+products_industry_name
+FROM 
+bigquery-public-data.fda_food.food_events
+GROUP BY products_industry_name
+ORDER BY COUNT(report_number) DESC LIMIT 10)
+AND outcomes LIKE '%Hospitalization%'
+GROUP BY products_industry_name
+ORDER BY count_hospitalizations DESC;
+--------------------------------------------------------
+SELECT
+  Warehouse.warehouse_id,
+  CONCAT(Warehouse.state, ': ', Warehouse.warehouse_alias) AS warehouse_name,
+  COUNT(Orders.order_id) AS number_of_orders,
+  (SELECT COUNT(*) FROM analise-467914.warehouse_orders.pedidos AS Orders) AS total_orders,
+  CASE
+    WHEN COUNT(Orders.order_id)/(SELECT COUNT(*) FROM analise-467914.warehouse_orders.pedidos AS Orders) <= 0.20
+    THEN 'Fulfilled 0-20% of Orders'
+    WHEN COUNT(Orders.order_id)/(SELECT COUNT(*) FROM analise-467914.warehouse_orders.pedidos AS Orders) > 0.20
+    AND COUNT(Orders.order_id)/(SELECT COUNT(*) FROM analise-467914.warehouse_orders.pedidos AS Orders) <= 0.60
+    THEN 'Fulfilled 21-60% of Orders'
+    ELSE 'Fulfilled more than 60% of Orders'
+  END AS fulfillment_summary
+FROM analise-467914.warehouse_orders.warehouses AS Warehouse
+LEFT JOIN analise-467914.warehouse_orders.pedidos AS Orders
+ON Orders.warehouse_id = Warehouse.warehouse_id
+GROUP BY
+  Warehouse.warehouse_id,
+  warehouse_name
+HAVING
+  COUNT(Orders.order_id) > 0
+------------------------------------------------------------
+SELECT
+    tripduration,
+    start_station_id
+FROM bigquery-public-data.new_york_citibike.citibike_trips
+WHERE start_station_id IN
+    (
+        SELECT
+            start_station_id
+        FROM
+        (
+            SELECT
+                start_station_id,
+                AVG(tripduration) AS avg_duration
+            FROM bigquery-public-data.new_york_citibike.citibike_trips
+            GROUP BY start_station_id
+        ) AS top_five
+        ORDER BY avg_duration DESC
+    
+        LIMIT 5
+    );
